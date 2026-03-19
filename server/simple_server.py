@@ -1,8 +1,9 @@
 import socket
 
+
 class Server:
 
-    def __init__(self, IPV4: tuple[HOST: str, PORT: int], MAX_CONNECTIONS: int = 1) -> Server:
+    def __init__(self, IPV4: tuple, MAX_CONNECTIONS: int = 1) -> Server:
         self.HOST, self.PORT = IPV4
         self.MAX_CONNECTIONS = MAX_CONNECTIONS
 
@@ -24,6 +25,22 @@ class Server:
         self.socket.close()
     
 
+    def _send(self, connection, message):
+        if connection and message:
+            connection.send(message.encode("utf-8"))
+
+    def _recv(self, connection):
+        data = connection.recv(1024)
+
+        if not data:
+            return
+        
+        try:
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            return f"Invalid UTF-8 message."
+
+
     '''
         Listening to new connections.
     '''
@@ -33,19 +50,27 @@ class Server:
 
         self.socket.listen(self.MAX_CONNECTIONS)
 
-        connection, address = self.socket.accept()
+        while True:
+            connection, address = self.socket.accept()
 
-        with connection:
-            print(f"\t{address} established a connection.\n")
+            with connection:
+                print(f"\t{address} established a connection.\n")
 
-            while True:
-                data = connection.recv(1024)
+                while True:
+                    message = self._recv(connection)
+                    
+                    if not message:
+                        continue
 
-                if not data:
-                    break
+                    # Ends the connection
+                    if message == "FIM":
+                        break
 
-                print(f"\t{address} said: {data.decode("utf-8")}")
-                connection.sendall("Bye bye!".encode("utf-8"))
+                    print(f"\t{address} said: {message}")
+                    
+                    self._send(connection, "OK!")                
+            
+            print(f"\n\t{address} closed the connection.\n")
 
 
 
